@@ -1,14 +1,11 @@
 import pandas as pd
 
 
-
-# 1. Load data
 def load_data(path):
     df = pd.read_csv(path)
     return df
 
 
-# 2. Convert datetime + extract features
 def convert_datetime(df):
     df["TransactionStartTime"] = pd.to_datetime(df["TransactionStartTime"])
 
@@ -19,7 +16,6 @@ def convert_datetime(df):
     return df
 
 
-# 3. Aggregate per customer
 def aggregate_features(df):
     customer_df = df.groupby("CustomerId").agg(
         total_amount=("Amount", "sum"),
@@ -33,12 +29,10 @@ def aggregate_features(df):
     return customer_df
 
 
-# 4. Handle missing values
 def handle_missing(df):
     return df.fillna(0)
 
 
-# 5. Full pipeline
 def preprocess_data(path):
     df = load_data(path)
 
