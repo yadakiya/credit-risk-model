@@ -50,10 +50,17 @@ def create_rfm(df):
     snapshot_date = df["TransactionStartTime"].max()
 
     rfm = df.groupby("CustomerId").agg(
-        Recency=("TransactionStartTime", lambda x: (snapshot_date - x.max()).days),
-        Frequency=("TransactionId", "count"),
-        Monetary=("Amount", "sum")
-    ).reset_index()
+        Recency=(
+            "TransactionStartTime",
+            lambda x: (
+                snapshot_date -
+                x.max()).days),
+        Frequency=(
+            "TransactionId",
+            "count"),
+        Monetary=(
+            "Amount",
+            "sum")).reset_index()
 
     return rfm
 
@@ -72,7 +79,8 @@ def cluster_customers(rfm):
 
 
 def label_risk(rfm):
-    summary = rfm.groupby("cluster")[["Recency", "Frequency", "Monetary"]].mean()
+    summary = rfm.groupby("cluster")[
+        ["Recency", "Frequency", "Monetary"]].mean()
 
     high_risk_cluster = summary["Recency"].idxmax()
 
