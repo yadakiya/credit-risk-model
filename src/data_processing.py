@@ -10,10 +10,10 @@ def load_data(path):
 def preprocess_data(path):
     df = load_data(path)
 
-    # FIX: datetime conversion (important for RFM)
-    df["TransactionStartTime"] = pd.to_datetime(df["TransactionStartTime"])
+    df["TransactionStartTime"] = pd.to_datetime(
+        df["TransactionStartTime"]
+    )
 
-    # simple missing handling
     df = df.fillna(0)
 
     return df
@@ -36,10 +36,17 @@ def aggregate_customer_features(df):
 # =========================
 
 def create_rfm(df):
-    snapshot_date = df["TransactionStartTime"].max()
+
+    snapshot_date = (
+        df["TransactionStartTime"].max()
+        + pd.Timedelta(days=1)
+    )
 
     rfm = df.groupby("CustomerId").agg(
-        Recency=("TransactionStartTime", lambda x: (snapshot_date - x.max()).days),
+        Recency=(
+            "TransactionStartTime",
+            lambda x: (snapshot_date - x.max()).days
+        ),
         Frequency=("TransactionId", "count"),
         Monetary=("Amount", "sum")
     ).reset_index()
@@ -54,14 +61,21 @@ def cluster_customers(rfm):
         rfm[["Recency", "Frequency", "Monetary"]]
     )
 
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+    kmeans = KMeans(
+        n_clusters=3,
+        random_state=42,
+        n_init=10
+    )
+
     rfm["cluster"] = kmeans.fit_predict(rfm_scaled)
 
     return rfm
 
 
 def label_risk(rfm):
-    cluster_summary = rfm.groupby("cluster")[["Recency", "Frequency", "Monetary"]].mean()
+    cluster_summary = rfm.groupby(
+        "cluster"
+    )[["Recency", "Frequency", "Monetary"]].mean()
 
     high_risk_cluster = cluster_summary["Recency"].idxmax()
 
