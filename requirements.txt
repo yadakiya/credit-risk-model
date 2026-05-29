@@ -16,3 +16,4 @@ docker
 python-dotenv
 xverse
 category_encoders
+joblib
