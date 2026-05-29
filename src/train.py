@@ -4,6 +4,7 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -12,7 +13,10 @@ from sklearn.metrics import (
     roc_auc_score
 )
 
-from src.data_processing import preprocess_data, build_rfm_target
+from src.data_processing import (
+    preprocess_data,
+    build_rfm_target
+)
 
 
 def evaluate(model, X_test, y_test):
@@ -39,29 +43,56 @@ def main():
     y = data["is_high_risk"]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X,
+        y,
+        test_size=0.2,
+        random_state=42
     )
 
     # =====================
     # LOGISTIC REGRESSION
     # =====================
     log_model = LogisticRegression(max_iter=1000)
+
     log_model.fit(X_train, y_train)
 
-    print("Logistic Regression:", evaluate(log_model, X_test, y_test))
+    log_results = evaluate(
+        log_model,
+        X_test,
+        y_test
+    )
+
+    print(
+        "Logistic Regression:",
+        log_results
+    )
 
     # =====================
     # RANDOM FOREST
     # =====================
-    rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf_model = RandomForestClassifier(
+        n_estimators=100,
+        random_state=42
+    )
+
     rf_model.fit(X_train, y_train)
 
-    print("Random Forest:", evaluate(rf_model, X_test, y_test))
+    rf_results = evaluate(
+        rf_model,
+        X_test,
+        y_test
+    )
+
+    print(
+        "Random Forest:",
+        rf_results
+    )
 
     # =====================
-    # SAVE MODEL (FIX)
+    # SAVE MODEL
     # =====================
     joblib.dump(rf_model, "model.pkl")
+
     print("Model saved as model.pkl")
 
 
