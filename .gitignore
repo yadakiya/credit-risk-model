@@ -10,3 +10,5 @@ mlruns/
 .ipynb_checkpoints/
 
 .env
+
+.venv/
