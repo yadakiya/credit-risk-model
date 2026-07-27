@@ -6,6 +6,7 @@ Feature order is driven by config.PipelineConfig.feature_columns so the
 API can never silently drift out of sync with what the model was trained
 on.
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -49,4 +50,6 @@ def predict(data: PredictionRequest) -> PredictionResponse:
     probability = float(_model.predict_proba(features)[0][1])
     is_high_risk = int(probability > DEFAULT_CONFIG.decision_threshold)
 
-    return PredictionResponse(risk_probability=probability, is_high_risk=is_high_risk)
+    return PredictionResponse(
+        risk_probability=probability, is_high_risk=is_high_risk
+    )

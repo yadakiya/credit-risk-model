@@ -3,13 +3,20 @@
 Field names here must match ``config.PipelineConfig.feature_columns``
 exactly, since the model is trained on those column names in that order.
 """
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class PredictionRequest(BaseModel):
-    total_amount: float = Field(..., description="Sum of all transaction amounts for the customer")
-    avg_amount: float = Field(..., description="Average transaction amount for the customer")
-    transaction_count: int = Field(..., ge=0, description="Number of transactions for the customer")
+    total_amount: float = Field(
+        ..., description="Sum of all transaction amounts for the customer"
+    )
+    avg_amount: float = Field(
+        ..., description="Average transaction amount for the customer"
+    )
+    transaction_count: int = Field(
+        ..., ge=0, description="Number of transactions for the customer"
+    )
     std_amount: float = Field(
         0.0, description="Std. deviation of the customer's transaction amounts"
     )

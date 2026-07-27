@@ -6,6 +6,7 @@ predict_proba -> response path (the exact path that was broken by the
 original feature mismatch bug) without requiring a full training run or
 real data file.
 """
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -28,10 +29,12 @@ def client(monkeypatch):
     )
     y = (X["transaction_count"] < 500).astype(int)
 
-    pipeline = Pipeline([
-        ("scaler", StandardScaler()),
-        ("classifier", LogisticRegression(random_state=42)),
-    ])
+    pipeline = Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            ("classifier", LogisticRegression(random_state=42)),
+        ]
+    )
     pipeline.fit(X, y)
 
     monkeypatch.setattr(api_main, "_model", pipeline)
@@ -60,6 +63,9 @@ def test_predict_endpoint_returns_valid_response_shape(client):
 
 
 def test_predict_endpoint_rejects_missing_required_field(client):
-    payload = {"total_amount": 100.0, "avg_amount": 50.0}  # missing transaction_count
+    payload = {
+        "total_amount": 100.0,
+        "avg_amount": 50.0,
+    }  # missing transaction_count
     response = client.post("/predict", json=payload)
     assert response.status_code == 422
