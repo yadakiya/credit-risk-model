@@ -1,0 +1,20 @@
+[33mcommit 36f4f294686a64424de5e954dbce85bb1e59f0e9[m
+Author: Yadeni Getu <yadeni.ugr-7202-16@aau.edu.et>
+Date:   Mon Jul 27 12:00:42 2026 +0300
+
+    Fix pytest import path in CI
+
+[1mdiff --git a/setup.cfg b/setup.cfg[m
+[1mindex bdef4c2..cafefbd 100644[m
+[1m--- a/setup.cfg[m
+[1m+++ b/setup.cfg[m
+[36m@@ -1,3 +1,8 @@[m
+ [flake8][m
+ max-line-length = 100[m
+ exclude = .git,__pycache__,notebooks,venv,.venv,data,mlruns[m
+[32m+[m
+[32m+[m[32mnotepad setup.cfg[m
+[32m+[m
+[32m+[m[32m[tool:pytest][m
+[32m+[m[32mpythonpath = .[m
+\ No newline at end of file[m

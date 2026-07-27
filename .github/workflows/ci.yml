@@ -26,4 +26,5 @@ jobs:
         run: flake8 src tests dashboard
 
       - name: Run tests
-        run: pytest -v --tb=short
+        # Running via 'python -m pytest' automatically adds the root directory to sys.path
+        run: python -m pytest -v --tb=short
