@@ -11,6 +11,7 @@ feature-mismatch error. ``build_training_dataset`` below is the single
 source of truth that ties feature engineering and target labeling together
 and is covered by regression tests in tests/test_data_processing.py.
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -42,6 +43,7 @@ def preprocess_data(path: str) -> pd.DataFrame:
 # TASK 3: AGGREGATE FEATURES
 # =========================
 
+
 def aggregate_customer_features(df: pd.DataFrame) -> pd.DataFrame:
     """Build customer-level aggregate features from transaction records.
 
@@ -49,12 +51,16 @@ def aggregate_customer_features(df: pd.DataFrame) -> pd.DataFrame:
     transaction amounts. These are the exact columns the API accepts at
     inference time.
     """
-    agg = df.groupby("CustomerId").agg(
-        total_amount=("Amount", "sum"),
-        avg_amount=("Amount", "mean"),
-        transaction_count=("TransactionId", "count"),
-        std_amount=("Amount", "std"),
-    ).reset_index()
+    agg = (
+        df.groupby("CustomerId")
+        .agg(
+            total_amount=("Amount", "sum"),
+            avg_amount=("Amount", "mean"),
+            transaction_count=("TransactionId", "count"),
+            std_amount=("Amount", "std"),
+        )
+        .reset_index()
+    )
 
     # A customer with a single transaction has an undefined std; treat as 0
     # rather than leaking NaNs into the model.
@@ -66,6 +72,7 @@ def aggregate_customer_features(df: pd.DataFrame) -> pd.DataFrame:
 # TASK 4: RFM PROXY TARGET
 # =========================
 
+
 def create_rfm(
     df: pd.DataFrame,
     snapshot_offset_days: int = DEFAULT_CONFIG.snapshot_offset_days,
@@ -75,14 +82,18 @@ def create_rfm(
         days=snapshot_offset_days
     )
 
-    rfm = df.groupby("CustomerId").agg(
-        Recency=(
-            "TransactionStartTime",
-            lambda x: (snapshot_date - x.max()).days,
-        ),
-        Frequency=("TransactionId", "count"),
-        Monetary=("Amount", "sum"),
-    ).reset_index()
+    rfm = (
+        df.groupby("CustomerId")
+        .agg(
+            Recency=(
+                "TransactionStartTime",
+                lambda x: (snapshot_date - x.max()).days,
+            ),
+            Frequency=("TransactionId", "count"),
+            Monetary=("Amount", "sum"),
+        )
+        .reset_index()
+    )
 
     return rfm
 
@@ -94,9 +105,13 @@ def cluster_customers(
 ) -> pd.DataFrame:
     """Segment customers into behavioral clusters using scaled RFM values."""
     scaler = StandardScaler()
-    rfm_scaled = scaler.fit_transform(rfm[["Recency", "Frequency", "Monetary"]])
+    rfm_scaled = scaler.fit_transform(
+        rfm[["Recency", "Frequency", "Monetary"]]
+    )
 
-    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=10)
+    kmeans = KMeans(
+        n_clusters=n_clusters, random_state=random_state, n_init=10
+    )
     rfm = rfm.copy()
     rfm["cluster"] = kmeans.fit_predict(rfm_scaled)
     return rfm
@@ -130,6 +145,7 @@ def build_rfm_target(
 # =========================
 # MODEL-READY DATASET
 # =========================
+
 
 def build_training_dataset(
     df: pd.DataFrame, config: PipelineConfig = DEFAULT_CONFIG

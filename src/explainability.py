@@ -13,6 +13,7 @@ StandardScaler, as used in src/train.py). SHAP explanations are computed on
 the *scaled* feature space produced by the pipeline's preprocessing steps,
 then mapped back to the original feature names for readability.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -28,10 +29,12 @@ from sklearn.pipeline import Pipeline
 class ExplanationResult:
     """SHAP explanation output for a batch of instances."""
 
-    shap_values: np.ndarray          # shape (n_samples, n_features)
-    base_value: float                # expected value (model output with no features)
+    shap_values: np.ndarray  # shape (n_samples, n_features)
+    base_value: float  # expected value (model output with no features)
     feature_names: List[str]
-    raw_features: pd.DataFrame       # original (unscaled) feature values, for display
+    raw_features: (
+        pd.DataFrame
+    )  # original (unscaled) feature values, for display
 
 
 def _split_pipeline(pipeline: Pipeline):
@@ -48,7 +51,9 @@ def _transform_features(pipeline: Pipeline, X: pd.DataFrame) -> np.ndarray:
     return Xt
 
 
-def build_explainer(pipeline: Pipeline, background: pd.DataFrame) -> shap.Explainer:
+def build_explainer(
+    pipeline: Pipeline, background: pd.DataFrame
+) -> shap.Explainer:
     """Build a SHAP explainer for the classifier step of a fitted pipeline.
 
     ``background`` should be a representative sample of training data (raw,
@@ -56,14 +61,19 @@ def build_explainer(pipeline: Pipeline, background: pd.DataFrame) -> shap.Explai
     """
     _, estimator = _split_pipeline(pipeline)
     background_transformed = _transform_features(pipeline, background)
-    return shap.TreeExplainer(estimator) if _is_tree_model(estimator) else shap.Explainer(
-        estimator.predict_proba, background_transformed
+    return (
+        shap.TreeExplainer(estimator)
+        if _is_tree_model(estimator)
+        else shap.Explainer(estimator.predict_proba, background_transformed)
     )
 
 
 def _is_tree_model(estimator) -> bool:
     return estimator.__class__.__name__ in {
-        "RandomForestClassifier", "GradientBoostingClassifier", "XGBClassifier", "LGBMClassifier"
+        "RandomForestClassifier",
+        "GradientBoostingClassifier",
+        "XGBClassifier",
+        "LGBMClassifier",
     }
 
 
@@ -89,15 +99,19 @@ def explain(
     elif isinstance(raw_shap, list):
         # Older SHAP: list of per-class arrays [class0, class1]
         values = raw_shap[1]
-        base_value = float(explainer.expected_value[1]) if isinstance(
-            explainer.expected_value, (list, np.ndarray)
-        ) else float(explainer.expected_value)
+        base_value = (
+            float(explainer.expected_value[1])
+            if isinstance(explainer.expected_value, (list, np.ndarray))
+            else float(explainer.expected_value)
+        )
     else:
         # Current SHAP TreeExplainer: ndarray shaped (n_samples, n_features, n_classes)
         values = raw_shap[:, :, 1] if raw_shap.ndim == 3 else raw_shap
-        base_value = float(explainer.expected_value[1]) if isinstance(
-            explainer.expected_value, (list, np.ndarray)
-        ) else float(explainer.expected_value)
+        base_value = (
+            float(explainer.expected_value[1])
+            if isinstance(explainer.expected_value, (list, np.ndarray))
+            else float(explainer.expected_value)
+        )
 
     return ExplanationResult(
         shap_values=np.asarray(values),
@@ -114,10 +128,16 @@ def _is_tree_model_explainer(explainer) -> bool:
 def global_feature_importance(result: ExplanationResult) -> pd.DataFrame:
     """Mean absolute SHAP value per feature, sorted descending (answers Q1)."""
     mean_abs = np.abs(result.shap_values).mean(axis=0)
-    importance = pd.DataFrame({
-        "feature": result.feature_names,
-        "mean_abs_shap": mean_abs,
-    }).sort_values("mean_abs_shap", ascending=False).reset_index(drop=True)
+    importance = (
+        pd.DataFrame(
+            {
+                "feature": result.feature_names,
+                "mean_abs_shap": mean_abs,
+            }
+        )
+        .sort_values("mean_abs_shap", ascending=False)
+        .reset_index(drop=True)
+    )
     return importance
 
 
@@ -127,9 +147,17 @@ def explain_instance(result: ExplanationResult, index: int) -> pd.DataFrame:
     Positive shap_value pushes the prediction toward high-risk; negative
     pushes toward low-risk.
     """
-    row = pd.DataFrame({
-        "feature": result.feature_names,
-        "feature_value": result.raw_features.iloc[index][result.feature_names].values,
-        "shap_value": result.shap_values[index],
-    }).sort_values("shap_value", key=np.abs, ascending=False).reset_index(drop=True)
+    row = (
+        pd.DataFrame(
+            {
+                "feature": result.feature_names,
+                "feature_value": result.raw_features.iloc[index][
+                    result.feature_names
+                ].values,
+                "shap_value": result.shap_values[index],
+            }
+        )
+        .sort_values("shap_value", key=np.abs, ascending=False)
+        .reset_index(drop=True)
+    )
     return row

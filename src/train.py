@@ -10,6 +10,7 @@ Each candidate model is a single fitted sklearn.pipeline.Pipeline
 (StandardScaler -> classifier), so the exact same object handles scaling
 and prediction at inference time -- no separate scaler to keep in sync.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,7 +39,9 @@ from src.data_processing import build_training_dataset, preprocess_data
 RAW_DATA_PATH = "data/raw/data.csv"
 
 
-def evaluate(model: Pipeline, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, float]:
+def evaluate(
+    model: Pipeline, X_test: pd.DataFrame, y_test: pd.Series
+) -> Dict[str, float]:
     """Compute standard binary classification metrics for a fitted model."""
     preds = model.predict(X_test)
     probs = model.predict_proba(X_test)[:, 1]
@@ -55,16 +58,28 @@ def evaluate(model: Pipeline, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[s
 def build_candidate_models(config: PipelineConfig) -> Dict[str, Pipeline]:
     """Define candidate model pipelines (preprocessing + estimator, single object)."""
     return {
-        "logistic_regression": Pipeline([
-            ("scaler", StandardScaler()),
-            ("classifier", LogisticRegression(max_iter=1000, random_state=config.random_state)),
-        ]),
-        "random_forest": Pipeline([
-            ("scaler", StandardScaler()),
-            ("classifier", RandomForestClassifier(
-                n_estimators=100, random_state=config.random_state
-            )),
-        ]),
+        "logistic_regression": Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "classifier",
+                    LogisticRegression(
+                        max_iter=1000, random_state=config.random_state
+                    ),
+                ),
+            ]
+        ),
+        "random_forest": Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "classifier",
+                    RandomForestClassifier(
+                        n_estimators=100, random_state=config.random_state
+                    ),
+                ),
+            ]
+        ),
     }
 
 
@@ -84,7 +99,11 @@ def train_and_track(config: PipelineConfig = DEFAULT_CONFIG) -> str:
     y = dataset["is_high_risk"]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=config.test_size, random_state=config.random_state, stratify=y
+        X,
+        y,
+        test_size=config.test_size,
+        random_state=config.random_state,
+        stratify=y,
     )
 
     mlflow.set_experiment(config.mlflow_experiment_name)
@@ -98,13 +117,15 @@ def train_and_track(config: PipelineConfig = DEFAULT_CONFIG) -> str:
             pipeline.fit(X_train, y_train)
             metrics = evaluate(pipeline, X_test, y_test)
 
-            mlflow.log_params({
-                "model_type": name,
-                "random_state": config.random_state,
-                "test_size": config.test_size,
-                "n_clusters": config.n_clusters,
-                "feature_columns": ",".join(config.feature_columns),
-            })
+            mlflow.log_params(
+                {
+                    "model_type": name,
+                    "random_state": config.random_state,
+                    "test_size": config.test_size,
+                    "n_clusters": config.n_clusters,
+                    "feature_columns": ",".join(config.feature_columns),
+                }
+            )
             mlflow.log_metrics(metrics)
             mlflow.sklearn.log_model(pipeline, artifact_path="model")
 

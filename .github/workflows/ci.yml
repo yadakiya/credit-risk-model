@@ -16,14 +16,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
           cache: "pip"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Lint with flake8
-        run: flake8 src tests dashboard
+        run: flake8 src tests dashboard --max-line-length=120
 
       - name: Run tests
-        run: pytest -v --tb=short
+        # Setting PYTHONPATH=. right before pytest guarantees 'src' is found
+        run: PYTHONPATH=. pytest -v --tb=short
