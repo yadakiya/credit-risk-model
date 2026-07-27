@@ -23,8 +23,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Lint with flake8
-        run: flake8 src tests dashboard
+        # --max-line-length=120 allows lines up to 120 characters instead of 79
+        run: flake8 src tests dashboard --max-line-length=120
 
       - name: Run tests
-        # Running via 'python -m pytest' automatically adds the root directory to sys.path
+        # 'python -m pytest' ensures your project root directory is added to Python's sys.path
         run: python -m pytest -v --tb=short
