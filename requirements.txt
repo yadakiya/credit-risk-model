@@ -11,7 +11,7 @@ lightgbm==4.5.0
 mlflow==3.14.0
 
 # Explainability & dashboard
-shap==0.52.0
+shap==0.51.0
 streamlit==1.60.0
 matplotlib==3.10.0
 
