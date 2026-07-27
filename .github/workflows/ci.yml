@@ -3,26 +3,27 @@ name: CI Pipeline
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          cache: "pip"
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install flake8 pytest
+        run: pip install -r requirements.txt
 
-      - name: Run flake8
-        run: flake8 src tests
+      - name: Lint with flake8
+        run: flake8 src tests dashboard
 
       - name: Run tests
-        run: pytest -v
+        run: pytest -v --tb=short

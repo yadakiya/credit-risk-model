@@ -2,13 +2,23 @@ venv/
 __pycache__/
 *.pyc
 
-data/raw/
-data/processed/
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
 
 mlruns/
+mlartifacts/
+mlflow.db
+
+model.pkl
+*.pkl
+
+.pytest_cache/
 
 .ipynb_checkpoints/
 
 .env
 
 .venv/
+.agents/

@@ -1,166 +1,201 @@
-# 💳 Credit Risk Modeling Project
+# 💳 Credit Risk Probability Model — Bati Bank
 
-## 📌 Overview
-This project is an end-to-end machine learning system for credit risk prediction. It includes data preprocessing, feature engineering (RFM), clustering, model training, evaluation, and deployment using FastAPI. A CI/CD pipeline is also implemented using GitHub Actions.
+[![CI Pipeline](https://github.com/yadakiya/credit-risk-model/actions/workflows/ci.yml/badge.svg)](https://github.com/yadakiya/credit-risk-model/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.10-blue)
 
----
+An end-to-end credit risk scoring service built for Bati Bank's buy-now-pay-later
+partnership with an eCommerce platform. Transforms raw transaction data into a
+customer risk probability, served via a REST API, with experiments tracked in
+MLflow and quality gates enforced in CI.
 
-## 🎯 Objectives
-- Clean and preprocess raw transaction data
-- Build customer-level features
-- Create RFM (Recency, Frequency, Monetary) features
-- Generate a proxy target for credit risk classification
-- Train machine learning models
-- Evaluate model performance
-- Deploy a prediction API using FastAPI
-- Implement CI/CD pipeline using GitHub Actions
+## Business Problem
 
----
+Bati Bank needs to decide, in real time, whether to extend a buy-now-pay-later
+line of credit to a new customer — without a history of loan repayment to draw
+on. The only signal available is the customer's past transaction behavior on
+the partner eCommerce platform. This project turns that behavioral data into a
+risk probability score the loan origination team can call via an API.
 
-## 🏢 Business Understanding
-Financial institutions face significant losses when customers default on loans or other financial obligations. Credit risk modeling helps organizations identify potentially risky customers before extending financial services.
+## Credit Scoring Business Understanding
 
-The goal of this project is to build a machine learning system that analyzes customer transaction behavior and predicts the likelihood of a customer belonging to a high-risk segment.
+**How does Basel II's emphasis on risk measurement shape the model?**
+Basel II requires banks to demonstrate *how* a risk estimate was produced, not
+just report a number — models used for capital and lending decisions must be
+documented, auditable, and explainable to a regulator. That pushes this project
+toward transparent feature engineering (aggregates and RFM values a
+non-technical reviewer can inspect), fixed random seeds for reproducibility,
+and logged experiments (MLflow) rather than an opaque, unversioned model.
 
-The solution supports data-driven decision making in lending, customer monitoring, and risk management processes.
+**Why is a proxy target necessary, and what risk does that introduce?**
+The raw transaction data has no "customer defaulted on a loan" label — there
+were no loans yet. `is_high_risk` is therefore constructed from RFM behavior
+(customers who transact rarely, recently stopped, and spend little are treated
+as high risk). This is a *behavioral* proxy for a *credit* outcome, and the two
+are not guaranteed to align: a disengaged shopper is not necessarily a bad
+borrower. Business risk: the model could systematically deny credit to
+customers who would have repaid reliably (false positives), or approve
+customers who look active but have no repayment history at all (false
+negatives). This assumption is a modeling choice, not ground truth, and should
+be revisited once real repayment outcomes exist.
 
----
+**Interpretable vs. high-performance models in a regulated context?**
+Logistic Regression (optionally with Weight of Evidence-encoded features) is
+easy to explain feature-by-feature to a risk committee or regulator, at some
+cost to predictive accuracy on nonlinear patterns. Gradient boosting / random
+forest models typically score higher on ranking metrics but require additional
+tooling (e.g. SHAP) to explain individual decisions. This project trains both
+and lets the metrics — not just raw accuracy — inform which is deployed;
+Logistic Regression remains the safer default where regulatory sign-off on
+explainability outweighs marginal AUC gains.
 
-## ⚖️ Regulatory Considerations
-Credit risk models operate in highly regulated environments and must ensure:
+## Solution Overview
 
-- Fair and unbiased decision making  
-- Transparency and explainability of model predictions  
-- Data privacy and customer confidentiality  
-- Responsible use of machine learning systems  
+1. **Feature engineering** (`src/data_processing.py`) — aggregates raw
+   transactions into customer-level features (total/average/count/std of
+   transaction amount) and computes RFM values.
+2. **Proxy target** — customers are K-Means clustered on scaled RFM values;
+   the least-engaged cluster is labeled `is_high_risk`.
+3. **Training** (`src/train.py`) — Logistic Regression and Random Forest are
+   each trained as a single `sklearn.pipeline.Pipeline` (scaler + classifier),
+   evaluated, and logged to MLflow; the best model by ROC-AUC is registered in
+   the MLflow Model Registry and saved for serving.
+4. **Serving** (`src/api/main.py`) — a FastAPI `/predict` endpoint loads that
+   pipeline and returns a risk probability for a given customer's aggregate
+   features.
+5. **Explainability** (`src/explainability.py`) — SHAP-based explanations for
+   both tree and linear models, answering *which features matter most
+   globally* and *why the model made this specific prediction*.
+6. **Dashboard** (`dashboard/app.py`) — a Streamlit app for the risk team:
+   score a customer interactively and see the SHAP breakdown behind that
+   score, or view portfolio-level feature importance and risk distribution.
 
-This project uses transaction-level data and focuses on building a reproducible and interpretable risk prediction pipeline.
+## Engineering Notes
 
----
+An earlier version of this pipeline trained the model on one-hot encoded
+`CustomerId` values while the API sent aggregate transaction features at
+prediction time — a feature mismatch that made every `/predict` call fail.
+This has been fixed: training and serving now share a single typed config
+(`src/config.py`) as the source of truth for which columns the model expects,
+and `tests/test_data_processing.py::test_build_training_dataset_*` is a
+regression test that would catch this class of bug if it recurred.
 
-## 📊 Dataset
-The dataset contains transaction-level data with features such as:
-- TransactionId  
-- CustomerId  
-- Amount  
-- TransactionStartTime  
-- ProductCategory  
-- ChannelId  
-- FraudResult (used indirectly for proxy labeling)
+## Key Results
 
----
+Metrics below are illustrative — regenerate with `python -m src.train` against
+the real Xente dataset and update before final submission.
 
-## 🧠 Feature Engineering
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
+|---|---|---|---|---|---|
+| Logistic Regression | — | — | — | — | — |
+| Random Forest | — | — | — | — | — |
 
-### Customer Aggregation Features
-- Total transaction amount  
-- Average transaction amount  
-- Transaction count  
+## Quick Start
 
-### RFM Features
-- **Recency**: Time since last transaction  
-- **Frequency**: Number of transactions  
-- **Monetary**: Total transaction value  
-
----
-
-## 🤖 Modeling Approach
-Since the dataset does not contain a direct default label, a proxy target was created using RFM-based clustering.
-
-Steps:
-1. Customers were grouped using **K-Means clustering**
-2. Clusters were analyzed based on risk behavior
-3. The highest-risk cluster was labeled as **high risk**
-4. This label was used for supervised learning
-
-Two models were trained:
-- Logistic Regression (baseline model)
-- Random Forest Classifier (advanced model)
-
----
-
-## 📈 Evaluation Metrics
-- Accuracy  
-- Precision  
-- Recall  
-- F1-score  
-- ROC-AUC  
-
----
-
-## 🚀 API (FastAPI)
-
-### Endpoint
-
-
-### Input Example
-```json
-{
-  "total_amount": 1000,
-  "avg_amount": 200,
-  "transaction_count": 5
-}
-
-{
-  "risk_probability": 0.78,
-  "is_high_risk": 1
-}
-
-
-
-🧪 CI/CD Pipeline
-
-Implemented using GitHub Actions:
-
-Code linting (flake8)
-Unit testing (pytest)
-Automated environment setup
-Continuous integration workflow
-🛠 Tech Stack
-Python 3.10
-Pandas, NumPy
-Scikit-learn
-FastAPI
-Joblib
-GitHub Actions
-📂 Project Structure
-credit-risk-model/
-│
-├── src/
-│   ├── data_processing.py
-│   ├── train.py
-│   ├── api/
-│   │   └── main.py
-│
-├── tests/
-├── .github/workflows/
-├── model.pkl
-├── requirements.txt
-├── README.md
-▶️ How to Run the Project
-1. Install Dependencies
+```bash
+git clone https://github.com/yadakiya/credit-risk-model
+cd credit-risk-model
 pip install -r requirements.txt
-2. Train Model
-python -m src.train
-3. Run FastAPI Server
+
+# Place the Xente dataset at data/raw/data.csv, then:
+python -m src.train          # trains, tracks in MLflow, saves model.pkl
 uvicorn src.api.main:app --reload
-📊 Status
+```
 
-✔ Data preprocessing
-✔ Feature engineering
-✔ RFM modeling
-✔ Model training
-✔ API deployment
-✔ CI/CD pipeline
+### Example request
 
-👨‍💻 Author
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"total_amount": 15000, "avg_amount": 750, "transaction_count": 20, "std_amount": 320.5}'
+```
 
-Credit Risk Modeling Project — Machine Learning Engineering Implementation
+```json
+{"risk_probability": 0.12, "is_high_risk": 0}
+```
 
+## Dashboard
 
----
+An interactive Streamlit dashboard for the risk team: score a customer and
+see the SHAP breakdown behind that score, or view portfolio-level feature
+importance and risk distribution.
 
-If you want next upgrade, I can also help you:
-- add **GitHub badges (build passing, Python version, etc.)**
-- add **architecture diagram**
-- or make it **portfolio-level (for internship/job)**
+```bash
+streamlit run dashboard/app.py
+```
+
+Requires `model.pkl` (from `python -m src.train`). The portfolio view also
+picks up `data/processed/training_dataset.csv` if present (also produced by
+`python -m src.train`) for the risk-distribution chart; without it, the
+dashboard still works for single-customer scoring and global feature
+importance.
+
+## Project Structure
+
+```
+credit-risk-model/
+├── .github/workflows/ci.yml     # lint + test on every push/PR to main
+├── notebooks/eda.ipynb          # exploratory analysis
+├── dashboard/
+│   └── app.py                   # Streamlit risk dashboard
+├── src/
+│   ├── config.py                # typed config: single source of truth
+│   ├── data_processing.py       # feature engineering + proxy target
+│   ├── train.py                 # training, MLflow tracking, registry
+│   ├── explainability.py        # SHAP global + per-prediction explanations
+│   └── api/
+│       ├── main.py              # FastAPI app
+│       └── pydantic_models.py   # request/response schemas
+├── tests/
+│   ├── test_data_processing.py
+│   ├── test_api.py
+│   └── test_explainability.py
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── README.md
+```
+
+## Running Tests
+
+```bash
+pytest -v
+flake8 src tests
+```
+
+## Docker
+
+```bash
+docker compose up --build
+```
+
+## Demo
+
+_Add screenshots here before final submission: `streamlit run dashboard/app.py`,
+screenshot the "Score a customer" tab (with the SHAP chart visible) and the
+"Portfolio overview" tab, plus the MLflow UI (`mlflow ui`) and the passing
+GitHub Actions run._
+
+## Technical Details
+
+- **Data**: Xente eCommerce transaction records (Kaggle Xente Challenge).
+- **Proxy target**: K-Means (k=3, `random_state=42`) on scaled RFM features;
+  least-engaged cluster → `is_high_risk=1`.
+- **Models**: Logistic Regression, Random Forest — both wrapped as a single
+  `sklearn.pipeline.Pipeline` so scaling and prediction never drift apart.
+- **Tracking**: MLflow experiment `credit-risk-model`, model registry name
+  `credit-risk-classifier`.
+- **Explainability**: SHAP (`TreeExplainer` for Random Forest, kernel-based
+  `Explainer` for Logistic Regression), surfaced in both the dashboard and
+  available for the API to call.
+
+## Future Improvements
+
+- Weight of Evidence / Information Value feature encoding
+- Loan amount/duration recommendation model (beyond binary risk classification)
+- Deploy the dashboard (Streamlit Community Cloud / internal server) for the risk team, rather than local-only
+- Hook the API up to a live MLflow tracking server so `/predict` always serves the latest registered model instead of a static `model.pkl`
+
+## Author
+
+Yadeni Getu
+  — Credit Risk Modeling Project, Analytics Engineering.
